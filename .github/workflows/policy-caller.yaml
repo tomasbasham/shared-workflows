@@ -1,0 +1,22 @@
+---
+# Dogfood the policy workflow in this repository, to enforce code quality
+# standards and best practices.
+#
+# DO NOT USE THIS WORKFLOW AS A TEMPLATE. Instead use the policy.yaml workflow
+# directly.
+name: policy
+on:
+  pull_request_target:
+  push:
+    branches:
+    # Run on merge queue branches for branch protection compatibility.
+    - gh-readonly-queue/**
+    - master
+permissions:
+  contents: read
+jobs:
+  quality-checks:
+    uses: tomasbasham/shared-workflows/.github/workflows/policy.yaml@master
+    with:
+      enable-merge-commit-check: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+      enable-commit-message-check: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
