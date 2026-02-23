@@ -1,0 +1,15 @@
+---
+# Dogfood the auto-merge workflow in this repository, to automate merging of
+# dependabot PRs and keep dependencies up to date.
+#
+# DO NOT USE THIS WORKFLOW AS A TEMPLATE. Instead use the auto-merge.yaml
+# workflow directly.
+name: auto-merge
+on:
+  pull_request_target:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  auto-merge:
+    uses: tomasbasham/shared-workflows/.github/workflows/auto-merge.yaml@master
