@@ -1,0 +1,22 @@
+---
+# Example caller workflow for testing Go projects
+# Place this file at .github/workflows/test.yaml in your repository
+name: test
+on:
+  pull_request_target:
+  push:
+    branches:
+    # Run on merge queue branches for branch protection compatibility.
+    - gh-readonly-queue/**
+    - master
+permissions:
+  contents: read
+jobs:
+  test:
+    uses: tomasbasham/shared-workflows/.github/workflows/test-go.yaml@v1
+    with:
+      # Go version to test against
+      go_version: stable
+
+      # Operating system to test against
+      runs_on: ubuntu-latest

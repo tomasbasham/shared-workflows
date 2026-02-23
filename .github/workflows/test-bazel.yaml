@@ -1,0 +1,50 @@
+---
+name: test
+on:
+  workflow_call:
+    inputs:
+      bazel-config:
+        description: Bazel config to pass to bazel run and bazel test (e.g. "remote")
+        type: string
+      runs-on:
+        description: Operating system to test against
+        type: string
+        default: ubuntu-latest
+    secrets:
+      BUILDBUDDY_API_KEY:
+        description: BuildBuddy API key for remote caching
+        required: false
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Run tests
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - uses: bazel-contrib/setup-bazel@0.18.0
+      with:
+        bazelisk-cache: true
+        disk-cache: ${{ inputs.bazel-config == '' && github.workflow || false }}
+        repository-cache: true
+        bazelrc: |
+          ${{ secrets.BUILDBUDDY_API_KEY != '' && format('build:remote --remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+    - name: Determine base SHA
+      id: base_sha
+      run: |
+        if [ "${{ github.event.pull_request != null }}" = "true" ]; then
+          echo "sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+        else
+          echo "sha=${{ github.event.before }}" >> $GITHUB_OUTPUT
+        fi
+    - name: Run tests
+      run: |
+        config=${{ inputs.bazel-config != '' && format('--config={0}', inputs.bazel-config) || '' }}
+        files="$(git diff --name-only ${{ steps.base_sha.outputs.sha }}..HEAD)"
+
+        # Run tests for targets that depend on the changed files. This includes
+        # all dependent tests, not just the tests for the changed files.
+        bazel $config run //:buildifier
+        bazel $config test $(bazel query --keep_going "tests(rdeps(//..., set($files)))" 2>/dev/null)

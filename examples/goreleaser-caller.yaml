@@ -1,0 +1,35 @@
+---
+# Example caller workflow for publishing Go projects with Goreleaser
+# Place this file at .github/workflows/publish.yaml in your repository
+name: publish
+on:
+  pull_request_target:
+  push:
+    branches:
+    # Run on merge queue branches for branch protection compatibility.
+    - gh-readonly-queue/**
+    - master
+permissions:
+  contents: write
+  packages: write # Required to publish images to GHR
+jobs:
+  test:
+    uses: tomasbasham/shared-workflows/.github/workflows/goreleaser.yaml@v1
+    with:
+      # Container registry hostname (e.g. ghcr.io, docker.io)
+      continaer-registry: ghcr.io
+
+      # Registry username
+      container-username: ${{ github.actor }}
+
+      # Version of GoReleaser Action to use
+      goreleaser-version: ~> v2
+    secrets:
+      # Registry password or token for authentication
+      CONTAINER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      # GPG private key for signing releases
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      # Passphrase for the GPG private key
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

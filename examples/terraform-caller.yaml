@@ -1,0 +1,37 @@
+---
+# Example caller workflow for testing Terraform modules
+# Place this file at .github/workflows/terraform.yaml in your repository
+name: terraform
+on:
+  pull_request_target:
+  push:
+    branches:
+    - master
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  terraform-checks:
+    uses: tomasbasham/shared-workflows/.github/workflows/terraform.yaml@v1
+    with:
+      # Enable Snyk IaC scanning (requires SNYK_TOKEN secret)
+      enable-snyk: true
+
+      # Enable results reporting to PR comments
+      enable-report: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+
+      # Directory containing Terraform modules
+      module-directory: modules
+
+      # Terraform version to use
+      tf-version: 1.14.0
+
+      # Trivy severity levels to scan for
+      trivy-severity: CRITICAL,HIGH
+    secrets:
+      # Snyk authentication token
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

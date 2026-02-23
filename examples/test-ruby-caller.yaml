@@ -1,0 +1,25 @@
+---
+# Example caller workflow for testing Ruby projects
+# Place this file at .github/workflows/test.yaml in your repository
+name: test
+on:
+  pull_request_target:
+  push:
+    branches:
+    # Run on merge queue branches for branch protection compatibility.
+    - gh-readonly-queue/**
+    - master
+permissions:
+  contents: read
+jobs:
+  test:
+    uses: tomasbasham/shared-workflows/.github/workflows/test-ruby.yaml@v1
+    with:
+      # Ruby version to test against
+      ruby-version: .ruby-version
+
+      # Operating system to test against
+      runs-on: ubuntu-latest
+
+      # Command to run tests
+      test-command: bundle exec rspec

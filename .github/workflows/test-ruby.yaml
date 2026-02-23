@@ -1,0 +1,30 @@
+---
+name: test
+on:
+  workflow_call:
+    inputs:
+      ruby-version:
+        description: Ruby version to test against
+        type: string
+        default: .ruby-version
+      runs-on:
+        description: Operating system to test against
+        type: string
+        default: ubuntu-latest
+      test-command:
+        description: Command to run tests
+        type: string
+        default: bundle exec rspec
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Run tests
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+    - uses: actions/checkout@v6
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version }}
+        bundler-cache: true
+    - run: ${{ inputs.test-command }}

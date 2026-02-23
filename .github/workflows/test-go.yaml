@@ -1,0 +1,25 @@
+---
+name: test
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: Go version to test against
+        type: string
+        default: stable
+      runs-on:
+        description: Operating system to test against
+        type: string
+        default: ubuntu-latest
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Run tests
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-go@v6
+      with:
+        go-version: ${{ inputs.go-version }}
+    - run: go test -v -cover ./...

@@ -1,0 +1,31 @@
+---
+# Example caller workflow for Dependabot auto-merge
+# Place this file at .github/workflows/auto-merge.yaml in your repository
+name: auto-merge
+on:
+  pull_request_target:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  auto-merge:
+    uses: tomasbasham/shared-workflows/.github/workflows/auto-merge.yaml@v1
+    with:
+      # Auto-merge all GitHub Actions updates
+      auto-merge-github-actions: true
+
+      # Auto-merge minor version updates (e.g., 1.0.0 -> 1.1.0)
+      # Set to true if you're confident in your test suite
+      auto-merge-semver-minor: false
+
+      # Auto-merge patch version updates (e.g., 1.0.0 -> 1.0.1)
+      auto-merge-semver-patch: true
+
+      # Number of retry attempts to enable auto-merge
+      retries: 8
+
+      # Base interval (in seconds) between retry attempts, with exponential backoff
+      retry-interval: 2
+
+      # Merge method to use (merge, squash, rebase)
+      merge-method: merge
