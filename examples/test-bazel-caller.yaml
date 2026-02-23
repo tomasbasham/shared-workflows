@@ -1,0 +1,25 @@
+---
+# Example caller workflow for testing Bazel projects
+# Place this file at .github/workflows/test.yaml in your repository
+name: test
+on:
+  pull_request_target:
+  push:
+    branches:
+    # Run on merge queue branches for branch protection compatibility.
+    - gh-readonly-queue/**
+    - master
+permissions:
+  contents: read
+jobs:
+  test:
+    uses: tomasbasham/shared-workflows/.github/workflows/test-bazel.yaml@v1
+    with:
+      # Bazel config to pass to bazel run and bazel test (e.g. "remote")
+      bazel_config: remote
+
+      # Operating system to test against
+      runs-on: ubuntu-latest
+    secrets:
+      # BuildBuddy API key for remote caching
+      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}

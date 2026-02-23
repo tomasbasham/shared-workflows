@@ -1,0 +1,58 @@
+---
+name: publish
+on:
+  workflow_call:
+    inputs:
+      container-registry:
+        description: Container registry hostname (e.g. ghcr.io, docker.io)
+        type: string
+      container-username:
+        description: Registry username
+        type: string
+      goreleaser-version:
+        description: Version of GoReleaser Action to use
+        type: string
+        default: ~> v2
+    secrets:
+      CONTAINER_PASSWORD:
+        description: Registry password or token for authentication
+      GPG_PRIVATE_KEY:
+        description: GPG private key for signing releases
+        required: true
+      GPG_PASSPHRASE:
+        description: Passphrase for the GPG private key
+        required: true
+permissions:
+  contents: write
+  packages: write
+jobs:
+  goreleaser:
+    name: Publish artefacts to GitHub
+    runs-on: ubuntu-latest
+    steps:
+    - name: Login to GHCR
+      if: inputs.container-registry != ''
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.container-registry }}
+        username: ${{ inputs.container-username }}
+        password: ${{ secrets.CONTAINER_PASSWORD }}
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-go@v6
+      with:
+        go-version: stable
+    - name: Import GPG keys
+      id: import_gpg
+      uses: crazy-max/ghaction-import-gpg@v6
+      with:
+        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+        passphrase: ${{ secrets.GPG_PASSPHRASE }}
+    - uses: goreleaser/goreleaser-action@v7
+      with:
+        version: ${{ inputs.goreleaser-version }}
+        args: release --clean
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}

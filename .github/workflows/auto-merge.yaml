@@ -1,0 +1,102 @@
+---
+name: auto-merge
+on:
+  workflow_call:
+    inputs:
+      auto-merge-github-actions:
+        description: Auto-merge GitHub Actions updates
+        type: boolean
+        default: true
+      auto-merge-semver-minor:
+        description: Auto-merge minor version updates
+        type: boolean
+        default: false
+      auto-merge-semver-patch:
+        description: Auto-merge patch version updates
+        type: boolean
+        default: true
+      retries:
+        description: Number of retry attempts to enable auto-merge if it fails due to pending status checks
+        type: number
+        default: 8
+      retry-interval:
+        description: Base interval (in seconds) between retry attempts, with exponential backoff
+        type: number
+        default: 2
+      merge-method:
+        description: Merge method to use (merge, squash, rebase)
+        type: string
+        default: merge
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  check-can-auto-merge:
+    if: github.triggering_actor == 'dependabot[bot]'
+    name: Check if PR can be auto-merged
+    runs-on: ubuntu-latest
+    outputs:
+      can-auto-merge: ${{ steps.can-auto-merge.outputs.approve }}
+    steps:
+    - name: Fetch Dependabot metadata
+      uses: dependabot/fetch-metadata@v2.5.0
+      id: dependabot-metadata
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Determine if auto-merge criteria are met
+      id: can-auto-merge
+      run: |
+        ENABLE_AUTO_MERGE=false
+
+        # Metadata from dependabot/fetch-metadata action
+        UPDATE_TYPE="${{ steps.dependabot-metadata.outputs.update-type }}"
+        ECOSYSTEM="${{ steps.dependabot-metadata.outputs.package-ecosystem }}"
+
+        # Check if GitHub Actions updates should be auto-merged
+        if [[ "${{ inputs.auto-merge-github-actions }}" == "true" && "${ECOSYSTEM}" == "github_actions" ]]; then
+          ENABLE_AUTO_MERGE=true
+        fi
+
+        # Check if patch updates should be auto-merged
+        if [[ "${{ inputs.auto-merge-semver-patch }}" == "true" && "${UPDATE_TYPE}" == "version-update:semver-patch" ]]; then
+          ENABLE_AUTO_MERGE=true
+        fi
+
+        # Check if minor updates should be auto-merged
+        if [[ "${{ inputs.auto-merge-semver-minor }}" == "true" && "${UPDATE_TYPE}" == "version-update:semver-minor" ]]; then
+          ENABLE_AUTO_MERGE=true
+        fi
+
+        echo "approve=${ENABLE_AUTO_MERGE}" >> $GITHUB_OUTPUT
+  auto-merge:
+    needs: check-can-auto-merge
+    if: needs.check-can-auto-merge.outputs.can-auto-merge == 'true' && github.triggering_actor == 'dependabot[bot]'
+    name: Auto merge pull requests
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - name: Comment on PR
+      run: gh pr comment "${{ github.event.pull_request.html_url }}" --body "🤖 Auto-merge approved - will merge after required checks pass."
+    - name: Enable auto-merge for Dependabot PR
+      run: |
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          MAX_ATTEMPTS=${{ inputs.retries }}
+          INTERVAL=${{ inputs.retry-interval }}
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $i to enable auto-merge..."
+
+            if gh pr merge --auto --${{ inputs.merge-method }} "${PR_URL}"; then
+              echo "✅ Auto-merge enabled!"
+              exit 0
+            else
+              SLEEP_TIME=$(( INTERVAL * 2 ** (i - 1) ))
+              echo "Unable to enable auto-merge. Waiting ${SLEEP_TIME} seconds before retrying..."
+              sleep $SLEEP_TIME
+            fi
+          done
+
+          echo "❌ Failed to enable auto-merge after ${MAX_ATTEMPTS} attempts"
+          gh pr comment "${PR_URL}" --body "❌ Failed to enable auto-merge. Please check the required status checks and try merging manually."
+          exit 1

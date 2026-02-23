@@ -1,0 +1,37 @@
+---
+# Example caller workflow for code quality policy checks
+# Place this file at .github/workflows/policy.yaml in your repository
+name: policy
+on:
+  pull_request_target:
+  push:
+    branches:
+    # Run on merge queue branches for branch protection compatibility.
+    - gh-readonly-queue/**
+    - master
+permissions:
+  contents: read
+jobs:
+  quality-checks:
+    uses: tomasbasham/shared-workflows/.github/workflows/policy.yaml@v1
+    with:
+      # Enable checking for merge commits in pull requests
+      enable-merge-commit-check: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+
+      # Enable commit message style checking (gitlint)
+      enable-commit-message-check: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+
+      # Enable markdown linting (pymarkdownlnt)
+      enable-markdown-check: true
+
+      # Enable YAML linting (yamllint)
+      enable-yaml-check: true
+
+      # Additional markdown options (e.g., patterns to exclude)
+      markdown-args: -e site
+
+      # Python version to use for linting tools
+      python-version: "3.10"
+
+      # Skip commit message checks for Dependabot PRs
+      skip-dependabot: true

@@ -1,0 +1,91 @@
+---
+name: terraform
+on:
+  workflow_call:
+    inputs:
+      enable-snyk:
+        description: Enable Snyk IaC scanning (requires SNYK_TOKEN secret)
+        type: boolean
+        default: true
+      enable-report:
+        description: Enable results reporting to PR comments
+        type: boolean
+        default: false
+      module-directory:
+        description: Directory containing Terraform modules
+        type: string
+        default: .
+      tf-version:
+        description: Terraform version to use
+        type: string
+        required: true
+      trivy-severity:
+        description: Severity levels for Trivy scanning
+        type: string
+        default: CRITICAL,HIGH
+    secrets:
+      SNYK_TOKEN:
+        description: Snyk authentication token
+        required: false
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+jobs:
+  terraform-checks:
+    name: Run Terraform checks
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Run tftest
+      uses: kapetndev/tftest-action@v0.1.0
+      env:
+        TF_INPUT: 0
+        TF_IN_AUTOMATION: 1
+      with:
+        working-directory: ${{ inputs.module-directory }}
+        terraform-version: ${{ inputs.tf-version }}
+        additional-args: -rs --out tftest-results.json
+    - name: Run Trivy in IaC mode
+      uses: aquasecurity/trivy-action@0.34.0
+      with:
+        scan-ref: ${{ inputs.module-directory }}
+        scan-type: config
+        hide-progress: true
+        format: sarif
+        output: trivy-results.sarif
+        severity: ${{ inputs.trivy-severity }}
+    - name: Run Snyk IaC
+      if: inputs.enable-snyk && env.SNYK_TOKEN != ''
+      uses: snyk/actions/iac@v1.0.0
+      with:
+        file: ${{ inputs.module-directory }}
+        sarif: true
+        args: --sarif-file-output=snyk-results.sarif --report
+      continue-on-error: true
+    - name: Report results
+      if: |
+        inputs.enable-report &&
+        hashFiles('tftest-results.json') != ''
+      uses: tomasbasham/terraform-report-action@v0.1.0
+      with:
+        module-directory: ${{ inputs.module-directory }}
+    - name: Upload Trivy SARIF
+      if: always() && hashFiles('trivy-results.sarif') != ''
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: trivy-results.sarif
+        category: trivy
+      continue-on-error: true
+    - name: Upload Snyk SARIF
+      if: always() && hashFiles('snyk-results.sarif') != ''
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: snyk-results.sarif
+        category: snyk
+      continue-on-error: true

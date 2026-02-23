@@ -1,0 +1,108 @@
+---
+name: policy
+on:
+  workflow_call:
+    inputs:
+      enable-merge-commit-check:
+        description: Enable checking for merge commits in pull requests
+        type: boolean
+        default: true
+      enable-commit-message-check:
+        description: Enable commit message style checking (gitlint)
+        type: boolean
+        default: true
+      enable-markdown-check:
+        description: Enable markdown linting (pymarkdownlnt)
+        type: boolean
+        default: true
+      enable-yaml-check:
+        description: Enable YAML linting (yamllint)
+        type: boolean
+        default: true
+      markdown-args:
+        description: Additional markdown options (e.g., patterns to exclude)
+        type: string
+      python-version:
+        description: Python version to use for linting tools
+        type: string
+        default: "3.10"
+      skip-dependabot:
+        description: Skip commit message checks for Dependabot PRs
+        type: boolean
+        default: true
+permissions:
+  contents: read
+jobs:
+  check-merge-commits:
+    if: inputs.enable-merge-commit-check == true
+    name: Check for merge commits
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Verify no merge commits
+      run: |
+        git config --global --add safe.directory /github/workspace
+        merge_commits=$(git rev-list --merges "origin/$GITHUB_BASE_REF".."origin/$GITHUB_HEAD_REF")
+        if [ -n "$merge_commits" ]; then
+          echo "Error: merge commits found in $GITHUB_BASE_REF..$GITHUB_HEAD_REF"
+          for merge_commit in $merge_commits; do
+            echo "$merge_commit"
+          done
+          exit 1
+        fi
+  commit-message-style:
+    if: |
+      inputs.enable-commit-message-check == true &&
+      (inputs.skip-dependabot == false || github.triggering_actor != 'dependabot[bot]')
+    name: Check commit message style
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install gitlint
+      run: pip install --user gitlint
+    - name: Validate commit messages
+      run: gitlint --commits ${{ github.event.pull_request.base.sha }}..HEAD
+  markdown-style:
+    if: inputs.enable-markdown-check == true
+    name: Check markdown style
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install markdownlint
+      run: pip install --user pymarkdownlnt
+    - name: Validate markdown
+      run: pymarkdown scan ${{ inputs.markdown-args }} **/*.md
+  yaml-style:
+    if: inputs.enable-yaml-check == true
+    name: Check YAML style
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install yamllint
+      run: pip install --user yamllint
+    - name: Validate YAML
+      run: yamllint .
