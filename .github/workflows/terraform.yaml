@@ -52,7 +52,7 @@ jobs:
         terraform-version: ${{ inputs.tf-version }}
         additional-args: -r --skip-lint --out tftest-results.json
     - name: Run Trivy in IaC mode
-      uses: aquasecurity/trivy-action@0.35.0
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         scan-ref: ${{ inputs.module-directory }}
         scan-type: config
