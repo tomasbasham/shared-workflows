@@ -39,7 +39,7 @@ jobs:
       can-auto-merge: ${{ steps.can-auto-merge.outputs.approve }}
     steps:
     - name: Fetch Dependabot metadata
-      uses: dependabot/fetch-metadata@v3.0.0
+      uses: dependabot/fetch-metadata@v3.1.0
       id: dependabot-metadata
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
