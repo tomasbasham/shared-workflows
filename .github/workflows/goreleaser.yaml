@@ -37,7 +37,7 @@ jobs:
         registry: ${{ inputs.container-registry }}
         username: ${{ inputs.container-username }}
         password: ${{ secrets.CONTAINER_PASSWORD }}
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
     - uses: actions/setup-go@v6
